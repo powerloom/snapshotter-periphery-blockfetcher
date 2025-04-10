@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  block_fetcher:
+    build: .
+    environment:
+      - RPC_URL
+      - RPC_RATE_LIMIT
+      - RPC_RETRY
+      - RPC_TIMEOUT
+      - POLLING_INTERVAL
+      - REDIS_HOST
+      - REDIS_PORT
+      - REDIS_DB
+      - REDIS_PASSWORD
+      - REDIS_SSL
+      - REDIS_CLUSTER
+      - LOG_DEBUG
+      - LOG_TO_FILES
+      - LOG_LEVEL
+    depends_on:
+      - redis
+    volumes:
+      - ./logs:/app/logs
+    env_file:
+      - .env
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass your_redis_password
+    ports:
+      - "6379:6379"
+    profiles:
+      - local

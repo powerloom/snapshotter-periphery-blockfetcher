@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "SnapshotterBlockFetcher"
+version = "0.1.0"
+description = "Block Fetch Entry Point. Fetches blocks and pushes them downstream to block unpackers."
+authors = ["Anomit Ghosh <anomit@powerloom.io>"]
+license = "GPL v3"
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+web3 = "^7.9.0"
+httpx = "^0.28.1"
+tenacity = "^9.0.0"
+aiolimiter = "^1.2.1"
+pydantic = "^2.10.6"
+loguru = "^0.7.3"
+redis = "^5.2.1"
+python-dotenv = "^1.1.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
