@@ -1,4 +1,5 @@
 {
+  "namespace": "${NAMESPACE}",
   "source_rpc": {
     "full_nodes": [
       {
