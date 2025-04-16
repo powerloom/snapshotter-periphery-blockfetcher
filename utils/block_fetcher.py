@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Type
 import asyncio
 import json
 import os
@@ -9,6 +9,8 @@ from utils.rpc import RpcHelper
 from utils.logging import logger
 from utils.redis.redis_conn import RedisPool
 from utils.models.redis_keys import block_cache_key
+from utils.preloaders.base import PreloaderHook
+from utils.preloaders.block_details import BlockDetailsDumper
 
 settings = get_core_config()
 
@@ -24,6 +26,11 @@ class BlockFetcher:
         self._logger = logger.bind(module='BlockFetcher')
         self.tx_queue_key = f'pending_transactions:{self.settings.namespace}'
         self.block_cache_key = block_cache_key(self.settings.namespace)
+        
+        # Initialize preloader hooks
+        self.preloader_hooks: List[PreloaderHook] = [
+            BlockDetailsDumper()  # Add more hooks here as needed
+        ]
 
     def _load_state(self) -> int:
         """Load the last processed block number from state file."""
@@ -79,11 +86,12 @@ class BlockFetcher:
                     block_num = start_block + i
                     results.append((block_num, tx_hashes))
                     
-                    # Cache the block data
-                    await self._redis.zadd(
-                        f'block_cache:{self.settings.namespace}',
-                        {json.dumps(block_data): block_num}
-                    )
+                    # Run all preloader hooks
+                    for hook in self.preloader_hooks:
+                        try:
+                            await hook.process_block(block_data, self.settings.namespace)
+                        except Exception as e:
+                            self._logger.error(f"Error in preloader hook {hook.__class__.__name__}: {e}")
             
             return results
         except Exception as e:
