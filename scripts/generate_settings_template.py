@@ -4,6 +4,7 @@ import json
 def generate_template():
     """Generate template settings.json with placeholder values"""
     template = {
+        "namespace": "${NAMESPACE}",
         "source_rpc": {
             "full_nodes": [
                 {

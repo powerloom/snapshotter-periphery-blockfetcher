@@ -89,6 +89,7 @@ class Logs(BaseModel):
 
 class Settings(BaseModel):
     """Main settings configuration model."""
+    namespace: str
     source_rpc: RPCConfigFull
     httpx: HTTPXConfig
     reporting: ReportingConfig

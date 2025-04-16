@@ -8,10 +8,12 @@ from config.loader import get_core_config
 from utils.rpc import RpcHelper
 from utils.logging import logger
 from utils.redis.redis_conn import RedisPool
+from utils.models.redis_keys import block_cache_key
+
+settings = get_core_config()
 
 class BlockFetcher:
     MAX_BLOCK_DIFFERENCE = 10  # Maximum allowed difference from head
-    TX_QUEUE_KEY = 'pending_transactions'
     _redis: aioredis.Redis
 
     def __init__(self):
@@ -20,7 +22,9 @@ class BlockFetcher:
         self.state_file = "block_fetcher_state.json"
         self.last_processed_block = self._load_state()
         self._logger = logger.bind(module='BlockFetcher')
-        
+        self.tx_queue_key = f'pending_transactions:{self.settings.namespace}'
+        self.block_cache_key = block_cache_key(self.settings.namespace)
+
     def _load_state(self) -> int:
         """Load the last processed block number from state file."""
         try:
@@ -50,18 +54,36 @@ class BlockFetcher:
             return []
         return block['transactions']
 
+    def format_block_details(self, block: Dict) -> Dict:
+        """Format block details for caching."""
+        return {
+            'timestamp': int(block.get('timestamp', '0x0'), 16),
+            'number': int(block.get('number', '0x0'), 16),
+            'transactions': block.get('transactions', []),
+            'hash': block.get('hash'),
+            'parentHash': block.get('parentHash'),
+        }
+
     async def fetch_blocks_range(self, start_block: int, end_block: int) -> List[tuple[int, List[str]]]:
         """Fetch a range of blocks and extract their transaction hashes."""
         try:
             blocks = await self.rpc_helper.batch_eth_get_block(start_block, end_block)
             if not blocks:
                 return []
-                
+            
             results = []
             for i, block in enumerate(blocks):
                 if block and 'result' in block:
-                    tx_hashes = self.extract_transaction_hashes(block['result'])
-                    results.append((start_block + i, tx_hashes))
+                    block_data = block['result']
+                    tx_hashes = self.extract_transaction_hashes(block_data)
+                    block_num = start_block + i
+                    results.append((block_num, tx_hashes))
+                    
+                    # Cache the block data
+                    await self._redis.zadd(
+                        f'block_cache:{self.settings.namespace}',
+                        {json.dumps(block_data): block_num}
+                    )
             
             return results
         except Exception as e:
@@ -108,7 +130,7 @@ class BlockFetcher:
                 # Push tx hashes to Redis queue
                 for (block_number, tx_hashes) in results:
                     if tx_hashes:
-                        p = await self._redis.lpush(self.TX_QUEUE_KEY, *tx_hashes)
+                        p = await self._redis.lpush(self.tx_queue_key, *tx_hashes)
                         self._logger.info(f"📦 Pushed {p} tx hashes in block {block_number} to Redis queue for transaction processing")
                 self.last_processed_block = latest_block
                 self._save_state(self.last_processed_block)
