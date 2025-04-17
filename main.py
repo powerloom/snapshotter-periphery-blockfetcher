@@ -2,7 +2,7 @@ import asyncio
 import signal
 from config.loader import get_core_config
 from utils.block_fetcher import BlockFetcher
-from utils.logging import logger
+from utils.logging import logger, configure_file_logging
 
 class BlockProcessor:
     def __init__(self):
@@ -10,6 +10,8 @@ class BlockProcessor:
         self.block_fetcher = BlockFetcher()
         self.shutdown_event = asyncio.Event()
         self._logger = logger.bind(module='BlockProcessor')
+        
+        configure_file_logging(self.settings.logs.write_to_files)
         
     async def process_blocks(self):
         """Main processing loop for blocks."""

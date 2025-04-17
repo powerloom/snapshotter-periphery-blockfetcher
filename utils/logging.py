@@ -2,9 +2,6 @@ import os
 import sys
 from pathlib import Path
 from loguru import logger
-from config.loader import get_core_config
-
-settings = get_core_config()
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = Path("logs")
@@ -46,20 +43,22 @@ logger.add(
     filter=lambda record: record["level"].no >= logger.level("WARNING").no
 )
 
-if settings.logs.write_to_files:
-    # Add file loggers for each severity level
-    for level, filename in SEVERITY_FILES.items():
-        logger.add(
-            LOGS_DIR / filename,
-            rotation="100 MB",  # Smaller rotation size for individual files
-            retention="7 days",
-            compression="zip",
-            format=FILE_FORMAT,
-            level=level,
-            backtrace=True,
-            diagnose=True,
-            filter=lambda record, level=level: record["level"].name == level
-        )
+def configure_file_logging(write_to_files: bool = True):
+    """Configure file-based logging based on settings."""
+    if write_to_files:
+        # Add file loggers for each severity level
+        for level, filename in SEVERITY_FILES.items():
+            logger.add(
+                LOGS_DIR / filename,
+                rotation="100 MB",
+                retention="7 days",
+                compression="zip",
+                format=FILE_FORMAT,
+                level=level,
+                backtrace=True,
+                diagnose=True,
+                filter=lambda record, level=level: record["level"].name == level
+            )
 
 # Export the configured logger
-__all__ = ["logger"]
+__all__ = ["logger", "configure_file_logging"]
