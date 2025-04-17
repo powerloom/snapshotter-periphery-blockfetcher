@@ -4,11 +4,12 @@ import json
 import os
 import redis.asyncio as aioredis
 from datetime import datetime
-from config.loader import get_core_config
+from config.loader import get_core_config, get_preloader_config
 from utils.rpc import RpcHelper
 from utils.logging import logger
 from utils.redis.redis_conn import RedisPool
 from utils.models.redis_keys import block_cache_key
+from utils.preloaders.manager import PreloaderManager
 from utils.preloaders.base import PreloaderHook
 from utils.preloaders.block_details import BlockDetailsDumper
 
@@ -27,10 +28,10 @@ class BlockFetcher:
         self.tx_queue_key = f'pending_transactions:{self.settings.namespace}'
         self.block_cache_key = block_cache_key(self.settings.namespace)
         
-        # Initialize preloader hooks
-        self.preloader_hooks: List[PreloaderHook] = [
-            BlockDetailsDumper()  # Add more hooks here as needed
-        ]
+        # Load preloader hooks from config
+        preloader_config = get_preloader_config()
+        self.preloader_hooks = PreloaderManager.load_hooks(preloader_config)
+        self._logger.info(f"Loaded {len(self.preloader_hooks)} preloader hooks")
 
     def _load_state(self) -> int:
         """Load the last processed block number from state file."""

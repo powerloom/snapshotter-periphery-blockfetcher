@@ -1,16 +1,19 @@
 import json
 from functools import lru_cache
-from utils.models.settings_model import Settings
+from pathlib import Path
+from utils.models.settings_model import Settings, PreloaderConfig
 
-@lru_cache
+@lru_cache()
 def get_core_config() -> Settings:
-    """Load settings from the settings.json file."""
-    try:
-        with open('config/settings.json', 'r') as f:
-            settings_dict = json.load(f)
-        return Settings(**settings_dict)
-    except FileNotFoundError:
-        raise RuntimeError("Settings file not found. Ensure the entrypoint script has run.")
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"Error decoding settings file: {str(e)}")
+    """Load core configuration."""
+    config_path = Path(__file__).parent / 'settings.json'
+    with open(config_path) as f:
+        return Settings.model_validate(json.load(f))
+
+@lru_cache()
+def get_preloader_config() -> PreloaderConfig:
+    """Load preloader configuration."""
+    config_path = Path(__file__).parent / 'preloaders.json'
+    with open(config_path) as f:
+        return PreloaderConfig.model_validate(json.load(f))
 

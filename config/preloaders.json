@@ -1,0 +1,9 @@
+{
+    "preloaders": [
+        {
+            "task_type": "block_details",
+            "module": "utils.preloaders.block_details",
+            "class_name": "BlockDetailsDumper"
+        }
+    ]
+}
