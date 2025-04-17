@@ -4,7 +4,7 @@ import json
 import os
 import redis.asyncio as aioredis
 from datetime import datetime
-from config.loader import get_core_config, get_preloader_config
+from config.loader import get_core_config, get_preloader_config, PRELOADER_CONFIG_FILE
 from utils.rpc import RpcHelper
 from utils.logging import logger
 from utils.redis.redis_conn import RedisPool
@@ -29,9 +29,15 @@ class BlockFetcher:
         self.block_cache_key = block_cache_key(self.settings.namespace)
         
         # Load preloader hooks from config
+        self._logger.info(f"🔧 Initializing BlockFetcher with namespace: {self.settings.namespace}")
+        self._logger.info(f"📋 Using Redis queue key: {self.tx_queue_key}")
+        self._logger.info(f"💾 Using block cache key: {self.block_cache_key}")
+        self._logger.info(f"📁 Loading preloader config from: {os.path.abspath(PRELOADER_CONFIG_FILE)}")
         preloader_config = get_preloader_config()
         self.preloader_hooks = PreloaderManager.load_hooks(preloader_config)
-        self._logger.info(f"Loaded {len(self.preloader_hooks)} preloader hooks")
+        self._logger.info(f"🔌 Loaded {len(self.preloader_hooks)} preloader hooks:")
+        for hook in self.preloader_hooks:
+            self._logger.info(f"  ├─ {hook.__class__.__name__}")
 
     def _load_state(self) -> int:
         """Load the last processed block number from state file."""
@@ -140,7 +146,10 @@ class BlockFetcher:
                 for (block_number, tx_hashes) in results:
                     if tx_hashes:
                         p = await self._redis.lpush(self.tx_queue_key, *tx_hashes)
-                        self._logger.info(f"📦 Pushed {p} tx hashes in block {block_number} to Redis queue for transaction processing")
+                        self._logger.info(
+                            f"📦 Block {block_number}: Pushed {p} tx hashes to queue '{self.tx_queue_key}' "
+                            f"(first few: {', '.join(tx_hashes[:3])}{'...' if len(tx_hashes) > 3 else ''})"
+                        )
                 self.last_processed_block = latest_block
                 self._save_state(self.last_processed_block)
             
