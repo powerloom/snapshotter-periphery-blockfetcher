@@ -18,6 +18,7 @@ services:
       - LOG_DEBUG
       - LOG_TO_FILES
       - LOG_LEVEL
+      - TEST_MODE=${TEST_MODE:-false}
     depends_on:
       - redis
     volumes:
@@ -32,3 +33,4 @@ services:
       - "6379:6379"
     profiles:
       - local
+      - test

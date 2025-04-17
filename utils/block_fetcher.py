@@ -171,4 +171,26 @@ class BlockFetcher:
                 await asyncio.sleep(poll_interval)
             except Exception as e:
                 self._logger.error(f"🔥 Error in continuous processing: {str(e)}")
-                await asyncio.sleep(poll_interval) 
+                await asyncio.sleep(poll_interval)
+
+    async def start_test_mode(self):
+        """Process one block and then wait indefinitely."""
+        await self.rpc_helper.init()
+        self._logger.info("🧪 Starting BlockFetcher in test mode")
+        
+        try:
+            results = await self.process_new_blocks()
+            if results:
+                for block_number, tx_hashes in results:
+                    self._logger.info(f"⛏️ Test mode: Processed block {block_number} with {len(tx_hashes)} transactions")
+                    self._logger.info(f"📊 Transaction hashes: {', '.join(tx_hashes) if tx_hashes else 'None'}")
+            else:
+                self._logger.info("ℹ️ No new blocks to process in test mode")
+            
+            self._logger.info("�� Test mode: Waiting indefinitely...")
+            # Wait indefinitely
+            await asyncio.Event().wait()
+            
+        except Exception as e:
+            self._logger.error(f"�� Error in test mode: {str(e)}")
+            raise 
