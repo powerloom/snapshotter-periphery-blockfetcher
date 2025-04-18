@@ -17,7 +17,8 @@ SEVERITY_FILES = {
     "CRITICAL": "critical.log",
     "INFO": "info.log",
     "DEBUG": "debug.log",
-    "TRACE": "trace.log"
+    "TRACE": "trace.log",
+    "SUCCESS": "success.log"
 }
 
 # Common log format for files
