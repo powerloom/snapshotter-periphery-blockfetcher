@@ -27,7 +27,12 @@
     "db": "${REDIS_DB}",
     "password": "${REDIS_PASSWORD}",
     "ssl": "${REDIS_SSL}",
-    "cluster_mode": "${REDIS_CLUSTER}"
+    "cluster_mode": "${REDIS_CLUSTER}",
+    "data_retention": {
+      "max_blocks": 1000,
+      "ttl_seconds": 86400,
+      "cleanup_interval_seconds": 3600
+    }
   },
   "logs": {
     "debug_mode": "${LOG_DEBUG}",

@@ -109,6 +109,20 @@ class BlockFetcher:
         """Initialize RPC and Redis connections."""
         await self.rpc_helper.init()
         self._redis = RedisPool.get_pool()
+        
+        # Initialize preloader hooks
+        for hook in self.preloader_hooks:
+            if hasattr(hook, 'init'):
+                await hook.init()
+
+    async def close(self):
+        """Cleanup resources."""
+        # Cleanup preloader hooks
+        for hook in self.preloader_hooks:
+            if hasattr(hook, 'close'):
+                await hook.close()
+        
+        await RedisPool.close()
 
     async def process_new_blocks(self) -> List[tuple[int, List[str]]]:
         """Process new blocks since last processed block."""
@@ -160,18 +174,21 @@ class BlockFetcher:
 
     async def start_continuous_processing(self, poll_interval: float = 0.1):
         """Continuously process new blocks."""
-        await self.rpc_helper.init()
-        
-        while True:
-            try:
-                results = await self.process_new_blocks()
-                for block_number, tx_hashes in results:
-                    self._logger.info(f"⛏️ Processed block {block_number} with {len(tx_hashes)} transactions")
-                
-                await asyncio.sleep(poll_interval)
-            except Exception as e:
-                self._logger.error(f"🔥 Error in continuous processing: {str(e)}")
-                await asyncio.sleep(poll_interval)
+        try:
+            await self._init()
+            
+            while True:
+                try:
+                    results = await self.process_new_blocks()
+                    for block_number, tx_hashes in results:
+                        self._logger.info(f"⛏️ Processed block {block_number} with {len(tx_hashes)} transactions")
+                    
+                    await asyncio.sleep(poll_interval)
+                except Exception as e:
+                    self._logger.error(f"🔥 Error in continuous processing: {str(e)}")
+                    await asyncio.sleep(poll_interval)
+        finally:
+            await self.close()
 
     async def start_test_mode(self):
         """Process one block and then wait indefinitely."""
@@ -187,10 +204,10 @@ class BlockFetcher:
             else:
                 self._logger.info("ℹ️ No new blocks to process in test mode")
             
-            self._logger.info("�� Test mode: Waiting indefinitely...")
+            self._logger.info("🧪 Test mode: Waiting indefinitely...")
             # Wait indefinitely
             await asyncio.Event().wait()
             
         except Exception as e:
-            self._logger.error(f"�� Error in test mode: {str(e)}")
+            self._logger.error(f"🔥 Error in test mode: {str(e)}")
             raise 

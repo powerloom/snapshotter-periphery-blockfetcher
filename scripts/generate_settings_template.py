@@ -1,4 +1,3 @@
-from utils.models.settings_model import Settings, RPCConfigFull, RPCNodeConfig, RateLimitConfig, HTTPXConfig, ReportingConfig, Redis, Logs
 import json
 
 def generate_template():
@@ -32,7 +31,11 @@ def generate_template():
             "db": "${REDIS_DB}",
             "password": "${REDIS_PASSWORD}",
             "ssl": "${REDIS_SSL}",
-            "cluster_mode": "${REDIS_CLUSTER}"
+            "cluster_mode": "${REDIS_CLUSTER}",
+            "data_retention": {
+                "max_blocks": "${REDIS_MAX_BLOCKS}",
+                "ttl_seconds": "${REDIS_TTL_SECONDS}"
+            }
         },
         "logs": {
             "debug_mode": "${LOG_DEBUG}",
@@ -54,8 +57,7 @@ def generate_template():
         }
     }
     
-    with open('config/settings.template.json', 'w') as f:
-        json.dump(template, f, indent=2)
+    return json.dumps(template, indent=2)
 
 if __name__ == "__main__":
     generate_template()
