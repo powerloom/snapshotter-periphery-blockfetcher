@@ -36,8 +36,8 @@ class ReportingConfig(BaseModel):
 
 class RedisDataRetentionConfig(BaseModel):
     """Redis data retention configuration model."""
-    max_blocks: int = 100  # Maximum number of blocks to keep in zsets
-    ttl_seconds: int = 86400  # Default TTL for key-value pairs (24 hours)
+    max_blocks: int  # Maximum number of blocks to keep in zsets
+    ttl_seconds: int  # Default TTL for key-value pairs (24 hours)
 
 
 class Redis(BaseModel):
@@ -48,7 +48,7 @@ class Redis(BaseModel):
     password: Union[str, None] = None
     ssl: bool = False
     cluster_mode: bool = False
-    data_retention: RedisDataRetentionConfig = RedisDataRetentionConfig()
+    data_retention: RedisDataRetentionConfig
 
 
 class RPCNodeConfig(BaseModel):

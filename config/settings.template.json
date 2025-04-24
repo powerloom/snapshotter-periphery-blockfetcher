@@ -3,22 +3,22 @@
   "source_rpc": {
     "full_nodes": [
       {
-        "url": "${RPC_URL}",
+        "url": "${SOURCE_RPC_URL}",
         "rate_limit": {
-          "requests_per_second": "${RPC_RATE_LIMIT}"
+          "requests_per_second": "${SOURCE_RPC_RATE_LIMIT}"
         }
       }
     ],
     "archive_nodes": null,
     "force_archive_blocks": null,
-    "retry": "${RPC_RETRY}",
-    "request_time_out": "${RPC_TIMEOUT}",
+    "retry": "${SOURCE_RPC_RETRY}",
+    "request_time_out": "${SOURCE_RPC_TIMEOUT}",
     "connection_limits": {
       "max_connections": 100,
       "max_keepalive_connections": 50,
       "keepalive_expiry": 300
     },
-    "polling_interval": "${POLLING_INTERVAL}",
+    "polling_interval": "${SOURCE_RPC_POLLING_INTERVAL}",
     "semaphore_value": 20
   },
   "redis": {
@@ -29,9 +29,8 @@
     "ssl": "${REDIS_SSL}",
     "cluster_mode": "${REDIS_CLUSTER}",
     "data_retention": {
-      "max_blocks": 1000,
-      "ttl_seconds": 86400,
-      "cleanup_interval_seconds": 3600
+      "max_blocks": "${REDIS_MAX_BLOCKS}",
+      "ttl_seconds": "${REDIS_TTL_SECONDS}"
     }
   },
   "logs": {

@@ -11,6 +11,13 @@ class RedisDataManager:
         self.retention_config = retention_config
         self._redis: Optional[aioredis.Redis] = None
         self._logger = logger.bind(module='RedisDataManager')
+        self._last_cleanup_block = 0
+        # Cleanup interval is 10% of max_blocks, but at least 10 blocks
+        self._cleanup_interval = max(10, self.retention_config.max_blocks // 10)
+        self._logger.info(
+            f"Initialized RedisDataManager with max_blocks={retention_config.max_blocks}, "
+            f"cleanup_interval={self._cleanup_interval}"
+        )
 
     async def init(self):
         """Initialize Redis connection."""
@@ -32,14 +39,15 @@ class RedisDataManager:
         # Add the new value
         await self._redis.zadd(key, {value: score})
         
-        # Remove old entries if we exceed the limit
-        # We use zremrangebyrank to remove the oldest entries (lowest scores)
-        # The -max_blocks-1 ensures we keep exactly max_blocks entries
-        await self._redis.zremrangebyrank(
-            key,
-            0,
-            -self.retention_config.max_blocks - 1
-        )
+        # Only cleanup periodically based on block number
+        if score - self._last_cleanup_block >= self._cleanup_interval:
+            # Remove blocks older than max_blocks blocks ago
+            min_block = score - self.retention_config.max_blocks
+            removed = await self._redis.zremrangebyscore(key, '-inf', min_block)
+            self._last_cleanup_block = score
+            self._logger.debug(
+                f"Cleaned up {removed} blocks older than {min_block} from {key}"
+            )
 
     async def get_zset_size(self, key: str) -> int:
         """Get the current size of a zset."""

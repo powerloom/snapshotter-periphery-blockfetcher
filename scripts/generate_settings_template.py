@@ -7,22 +7,22 @@ def generate_template():
         "source_rpc": {
             "full_nodes": [
                 {
-                    "url": "${RPC_URL}",
+                    "url": "${SOURCE_RPC_URL}",
                     "rate_limit": {
-                        "requests_per_second": "${RPC_RATE_LIMIT}"
+                        "requests_per_second": "${SOURCE_RPC_RATE_LIMIT}"
                     }
                 }
             ],
             "archive_nodes": None,
             "force_archive_blocks": None,
-            "retry": "${RPC_RETRY}",
-            "request_time_out": "${RPC_TIMEOUT}",
+            "retry": "${SOURCE_RPC_RETRY}",
+            "request_time_out": "${SOURCE_RPC_TIMEOUT}",
             "connection_limits": {
                 "max_connections": 100,
                 "max_keepalive_connections": 50,
                 "keepalive_expiry": 300
             },
-            "polling_interval": "${POLLING_INTERVAL}",
+            "polling_interval": "${SOURCE_RPC_POLLING_INTERVAL}",
             "semaphore_value": 20
         },
         "redis": {
@@ -57,7 +57,8 @@ def generate_template():
         }
     }
     
-    return json.dumps(template, indent=2)
+    with open('config/settings.template.json', 'w') as f:
+        json.dump(template, f, indent=2)
 
 if __name__ == "__main__":
     generate_template()
