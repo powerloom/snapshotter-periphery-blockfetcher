@@ -8,7 +8,7 @@ from config.loader import get_core_config, get_preloader_config, PRELOADER_CONFI
 from utils.rpc import RpcHelper
 from utils.logging import logger
 from utils.redis.redis_conn import RedisPool
-from utils.models.redis_keys import block_cache_key
+from utils.models.redis_keys import block_cache_key, block_tx_htable_key
 from utils.preloaders.manager import PreloaderManager
 from utils.preloaders.base import PreloaderHook
 from utils.preloaders.block_details import BlockDetailsDumper
@@ -182,7 +182,8 @@ class BlockFetcher:
                     results = await self.process_new_blocks()
                     for block_number, tx_hashes in results:
                         self._logger.info(f"⛏️ Processed block {block_number} with {len(tx_hashes)} transactions")
-                    
+                    min_block = min(block_number for block_number, _ in results)
+                    await self._redis.delete(block_tx_htable_key(self.settings.namespace, min_block - self.settings.redis.data_retention.max_blocks))
                     await asyncio.sleep(poll_interval)
                 except Exception as e:
                     self._logger.error(f"🔥 Error in continuous processing: {str(e)}")
