@@ -182,8 +182,9 @@ class BlockFetcher:
                     results = await self.process_new_blocks()
                     for block_number, tx_hashes in results:
                         self._logger.info(f"⛏️ Processed block {block_number} with {len(tx_hashes)} transactions")
-                    min_block = min(block_number for block_number, _ in results)
-                    await self._redis.delete(block_tx_htable_key(self.settings.namespace, min_block - self.settings.redis.data_retention.max_blocks))
+                    if results:
+                        min_block = min(block_number for block_number, _ in results)
+                        await self._redis.delete(block_tx_htable_key(self.settings.namespace, min_block - self.settings.redis.data_retention.max_blocks))
                     await asyncio.sleep(poll_interval)
                 except Exception as e:
                     self._logger.error(f"🔥 Error in continuous processing: {str(e)}")
