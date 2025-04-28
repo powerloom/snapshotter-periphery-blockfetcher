@@ -22,11 +22,10 @@ class BlockFetcher:
     def __init__(self):
         self.settings = get_core_config()
         self.rpc_helper = RpcHelper(self.settings.source_rpc)
-        self.state_file = "block_fetcher_state.json"
-        self.last_processed_block = self._load_state()
         self._logger = logger.bind(module='BlockFetcher')
         self.tx_queue_key = f'pending_transactions:{self.settings.namespace}'
         self.block_cache_key = block_cache_key(self.settings.namespace)
+        self.last_processed_block_key = f'last_processed_block:{self.settings.namespace}'
         
         # Load preloader hooks from config
         self._logger.info(f"🔧 Initializing BlockFetcher with namespace: {self.settings.namespace}")
@@ -39,28 +38,18 @@ class BlockFetcher:
         for hook in self.preloader_hooks:
             self._logger.info(f"  ├─ {hook.__class__.__name__}")
 
-    def _load_state(self) -> int:
-        """Load the last processed block number from state file."""
+    async def _load_state(self) -> int:
+        """Load the last processed block number from Redis."""
         try:
-            if os.path.exists(self.state_file):
-                with open(self.state_file, 'r') as f:
-                    state = json.load(f)
-                    return state.get('last_processed_block', 0)
+            if not self._redis:
+                self._redis = await RedisPool.get_pool()
+            last_block = await self._redis.get(self.last_processed_block_key)
+            if last_block:
+                return int(last_block)
+            return 0
         except Exception as e:
-            self._logger.error(f"Error loading state: {str(e)}")
-        return 0
-
-    def _save_state(self, block_number: int):
-        """Save the last processed block number to state file."""
-        try:
-            state = {
-                'last_processed_block': block_number,
-                'last_updated': datetime.utcnow().isoformat()
-            }
-            with open(self.state_file, 'w') as f:
-                json.dump(state, f)
-        except Exception as e:
-            self._logger.error(f"Error saving state: {str(e)}")
+            self._logger.error(f"Error loading state from Redis: {str(e)}")
+            return 0
 
     def extract_transaction_hashes(self, block: Dict) -> List[str]:
         """Extract transaction hashes from a block."""
@@ -130,6 +119,7 @@ class BlockFetcher:
             await self._init()
             
             latest_block = await self.rpc_helper.get_current_block_number()
+            self.last_processed_block = await self._load_state()
             
             # Check if we're too far behind
             block_difference = latest_block - self.last_processed_block
@@ -144,7 +134,6 @@ class BlockFetcher:
                     f"{latest_block - self.MAX_BLOCK_DIFFERENCE - 1}"
                 )
                 self.last_processed_block = latest_block - self.MAX_BLOCK_DIFFERENCE
-                self._save_state(self.last_processed_block)
 
             if latest_block <= self.last_processed_block:
                 self._logger.debug(
@@ -165,7 +154,6 @@ class BlockFetcher:
                             f"(first few: {', '.join(tx_hashes[:3])}{'...' if len(tx_hashes) > 3 else ''})"
                         )
                 self.last_processed_block = latest_block
-                self._save_state(self.last_processed_block)
             
             return results
         except Exception as e:
