@@ -29,14 +29,12 @@ services:
       - .env
 
   redis:
-    image: "redis:alpine"
-    command: redis-server --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-512mb} --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
-    expose:
-      - 6379
+    image: "redis:7-alpine"
+    command: redis-server --appendonly yes --port ${REDIS_PORT:-6379} --maxmemory ${REDIS_MAX_MEMORY:-512mb} --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
     ports:
-      - 6379:6379
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
-      test: ["CMD", "sh", "-c", "redis-cli ping | grep -q PONG && ! redis-cli info persistence | grep -q 'loading:1'"]
+      test: ["CMD", "sh", "-c", "redis-cli -h ${REDIS_HOST:-localhost} -p ${REDIS_PORT:-6379} ping | grep -q PONG && ! redis-cli -h ${REDIS_HOST:-localhost} -p ${REDIS_PORT:-6379} info persistence | grep -q 'loading:1'"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -47,6 +45,7 @@ services:
     # Add optional password and memory configurations
     environment:
       - REDIS_PASSWORD
+      - REDIS_HOST
     profiles:
       - local
       - test
