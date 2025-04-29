@@ -5,7 +5,7 @@ import os
 import redis.asyncio as aioredis
 from datetime import datetime
 from config.loader import get_core_config, get_preloader_config, PRELOADER_CONFIG_FILE
-from utils.rpc import RpcHelper
+from rpc_helper.rpc import RpcHelper
 from utils.logging import logger
 from utils.redis.redis_conn import RedisPool
 from utils.models.redis_keys import block_cache_key, block_tx_htable_key
