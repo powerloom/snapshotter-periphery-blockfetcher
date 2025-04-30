@@ -9,14 +9,15 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-web3 = "^7.9.0"
-httpx = "^0.28.1"
-tenacity = "^9.0.0"
+web3 = "^6.17.1"
+httpx = "^0.24.1"
+tenacity = "^8.2.2"
 aiolimiter = "^1.2.1"
-pydantic = "^2.10.6"
+pydantic = "^1.10.21"
 loguru = "^0.7.3"
 redis = "^5.2.1"
 python-dotenv = "^1.1.0"
+rpc_helper = { git = "https://github.com/PowerLoom/rpc-helper.git"}
 
 
 [build-system]
