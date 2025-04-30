@@ -1792,7 +1792,7 @@ web3 = "6.17.1"
 type = "git"
 url = "https://github.com/PowerLoom/rpc-helper.git"
 reference = "HEAD"
-resolved_reference = "c03c637bec84dbab545bff0be62edf760cec77cc"
+resolved_reference = "a66ead4e528d09979f7b392f84e4aab1e78501b5"
 
 [[package]]
 name = "rpds-py"
