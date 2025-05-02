@@ -17,7 +17,7 @@ pydantic = "^2.11.3"
 loguru = "^0.7.3"
 redis = "^5.2.1"
 python-dotenv = "^1.1.0"
-rpc_helper = { git = "https://github.com/PowerLoom/rpc-helper.git", branch = "feat/dependency_update" }
+rpc_helper = { git = "https://github.com/PowerLoom/rpc-helper.git"}
 
 
 [build-system]
