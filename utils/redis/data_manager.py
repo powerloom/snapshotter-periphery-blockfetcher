@@ -13,10 +13,14 @@ class RedisDataManager:
         self._logger = logger.bind(module='RedisDataManager')
         self._last_cleanup_block = 0
         # Cleanup interval is 10% of max_blocks, but at least 10 blocks
-        self._cleanup_interval = max(10, self.retention_config.max_blocks // 10)
+        self._block_cleanup_interval = max(10, self.retention_config.max_blocks // 10)
+        self._last_cleanup_timestamp = 0
+        # Cleanup interval is 10% of max_timestamps, but at least 10 timestamps
+        self._timestamp_cleanup_interval = max(10, self.retention_config.max_timestamps // 10)
         self._logger.info(
-            f"Initialized RedisDataManager with max_blocks={retention_config.max_blocks}, "
-            f"cleanup_interval={self._cleanup_interval}"
+            f"Initialized RedisDataManager: "
+            f"max_blocks={retention_config.max_blocks}, block_cleanup_interval={self._block_cleanup_interval}, "
+            f"max_timestamps={retention_config.max_timestamps}, timestamp_cleanup_interval={self._timestamp_cleanup_interval}"
         )
 
     async def init(self):
@@ -31,23 +35,52 @@ class RedisDataManager:
         ttl = ttl or self.retention_config.ttl_seconds
         await self._redis.set(key, value, ex=ttl)
 
-    async def add_to_zset(self, key: str, value: str, score: float):
-        """Add to zset and maintain size limit."""
+    async def _add_to_zset_with_cleanup(
+        self, 
+        key: str, 
+        value: str, 
+        score: float, 
+        last_cleanup_score: float, 
+        cleanup_interval: int, 
+        max_items: int
+    ) -> float:
+        """Helper to add to zset and maintain size limit, returns new last_cleanup_score."""
         if not self._redis:
             return
 
         # Add the new value
         await self._redis.zadd(key, {value: score})
-        
-        # Only cleanup periodically based on block number
-        if score - self._last_cleanup_block >= self._cleanup_interval:
-            # Remove blocks older than max_blocks blocks ago
-            min_block = score - self.retention_config.max_blocks
-            removed = await self._redis.zremrangebyscore(key, '-inf', min_block)
-            self._last_cleanup_block = score
+
+        if score - last_cleanup_score >= cleanup_interval:
+            min_score_to_keep = score - max_items
+            removed_count = await self._redis.zremrangebyscore(key, '-inf', min_score_to_keep)
             self._logger.debug(
-                f"Cleaned up {removed} blocks older than {min_block} from {key}"
+                f"Cleaned up {removed_count} items older than score {min_score_to_keep} from ZSET '{key}'"
             )
+            return score  # Update last_cleanup_score
+        return last_cleanup_score
+
+    async def add_block_data_to_zset(self, key: str, value: str, score: float):
+        """Add block data to zset and maintain size limit based on max_blocks."""
+        self._last_cleanup_block = await self._add_to_zset_with_cleanup(
+            key=key,
+            value=value,
+            score=score,
+            last_cleanup_score=self._last_cleanup_block,
+            cleanup_interval=self._block_cleanup_interval,
+            max_items=self.retention_config.max_blocks
+        )
+
+    async def add_timestamp_data_to_zset(self, key: str, value: str, score: float):
+        """Add timestamp data to zset and maintain size limit based on max_timestamps."""
+        self._last_cleanup_timestamp = await self._add_to_zset_with_cleanup(
+            key=key,
+            value=value,
+            score=score,
+            last_cleanup_score=self._last_cleanup_timestamp,
+            cleanup_interval=self._timestamp_cleanup_interval,
+            max_items=self.retention_config.max_timestamps
+        )
 
     async def get_zset_size(self, key: str) -> int:
         """Get the current size of a zset."""
