@@ -34,7 +34,8 @@ def generate_template():
             "cluster_mode": "${REDIS_CLUSTER}",
             "data_retention": {
                 "max_blocks": "${REDIS_MAX_BLOCKS}",
-                "ttl_seconds": "${REDIS_TTL_SECONDS}"
+                "ttl_seconds": "${REDIS_TTL_SECONDS}",
+                "max_timestamps": "${REDIS_MAX_TIMESTAMPS}"
             }
         },
         "logs": {

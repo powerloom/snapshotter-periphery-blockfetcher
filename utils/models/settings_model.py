@@ -38,6 +38,7 @@ class ReportingConfig(BaseModel):
 class RedisDataRetentionConfig(BaseModel):
     """Redis data retention configuration model."""
     max_blocks: int  # Maximum number of blocks to keep in zsets
+    max_timestamps: int  # Maximum number of block timestamps to keep in zsets
     ttl_seconds: int  # Default TTL for key-value pairs (24 hours)
 
 

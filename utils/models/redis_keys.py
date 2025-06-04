@@ -11,3 +11,9 @@ def block_tx_htable_key(namespace: str, block_number: int) -> str:
 
 def event_detector_last_processed_block(namespace: str) -> str:
     return f'SystemEventDetector:lastProcessedBlock:{namespace}'
+
+def block_number_to_timestamp_key(namespace: str) -> str:
+    return f'blockNumberToTimestamp:{namespace}'
+
+def timestamp_to_block_number_key(namespace: str) -> str:
+    return f'timestampToBlockNumber:{namespace}'
