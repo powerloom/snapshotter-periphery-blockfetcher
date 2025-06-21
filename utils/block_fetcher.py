@@ -12,6 +12,7 @@ from utils.models.redis_keys import block_cache_key, block_tx_htable_key
 from utils.preloaders.manager import PreloaderManager
 from utils.preloaders.base import PreloaderHook
 from utils.preloaders.block_details import BlockDetailsDumper
+import time
 
 settings = get_core_config()
 
@@ -38,6 +39,7 @@ class BlockFetcher:
         self._logger.info(f"🔌 Loaded {len(self.preloader_hooks)} preloader hooks:")
         for hook in self.preloader_hooks:
             self._logger.info(f"  ├─ {hook.__class__.__name__}")
+        self._initialized = False
 
     def _load_state(self) -> int:
         """Load the last processed block number from local file."""
@@ -106,13 +108,16 @@ class BlockFetcher:
 
     async def _init(self):
         """Initialize RPC and Redis connections."""
-        await self.rpc_helper.init()
-        self._redis = RedisPool.get_pool()
-        
-        # Initialize preloader hooks
-        for hook in self.preloader_hooks:
-            if hasattr(hook, 'init'):
-                await hook.init()
+        if not self._initialized:
+            await self.rpc_helper.init()
+            self._redis = RedisPool.get_pool()
+            asyncio.create_task(self._cleanup_expired_project_data())
+
+            # Initialize preloader hooks
+            for hook in self.preloader_hooks:
+                if hasattr(hook, 'init'):
+                    await hook.init()
+            self._initialized = True
 
     async def close(self):
         """Cleanup resources."""
@@ -187,8 +192,15 @@ class BlockFetcher:
                         self._logger.info(f"⛏️ Processed block {block_number} with {len(tx_hashes)} transactions")
                     if results:
                         pipeline = self._redis.pipeline()
+
                         for block_number, _ in results:
-                            pipeline.delete(block_tx_htable_key(self.settings.namespace, block_number - self.settings.redis.data_retention.max_blocks))
+                            # Add to expiry tracking sorted set with TTL
+                            expiry_time = int(time.time()) + 300
+                            expiry_key = block_tx_htable_key(self.settings.namespace, block_number)
+                            pipeline.zadd(
+                                name=f'DataExpiry:BlockFetcher:{self.settings.namespace}',
+                                mapping={expiry_key: expiry_time}
+                            )
                         await pipeline.execute()
                     await asyncio.sleep(poll_interval)
                 except Exception as e:
@@ -196,6 +208,43 @@ class BlockFetcher:
                     await asyncio.sleep(poll_interval)
         finally:
             await self.close()
+
+    async def _cleanup_expired_project_data(self):
+        """
+        Periodically checks for and removes expired project data entries.
+
+        This method runs in the background to clean up project data hash entries
+        that have exceeded their TTL as recorded in the expiry sorted set.
+        """
+        while True:
+            try:
+                self._logger.info(f"Cleaning up expired project data at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+                current_time = int(time.time())
+                # Get all entries that have expired
+                expired_entries = await self._redis.zrangebyscore(
+                    f'DataExpiry:BlockFetcher:{self.settings.namespace}',
+                    0,
+                    current_time,
+                    withscores=True
+                )
+
+                self._logger.info(f"Cleaning up {len(expired_entries)} expired project data entries")
+                if expired_entries:                    
+                    # Remove the entries from the hashmaps and the expiry set
+                    pipeline = self._redis.pipeline()
+                    for key, _ in expired_entries:
+                        pipeline.delete(key)
+
+                    # Remove from expiry tracking
+                    pipeline.zrem(f'DataExpiry:BlockFetcher:{self.settings.namespace}', *[entry for entry, _ in expired_entries])
+
+                    await pipeline.execute()
+
+            except Exception as e:
+                self._logger.error(f"Error cleaning up expired project data: {e}")
+
+            self._logger.info(f"Sleeping for 60 seconds before next cleanup cycle")
+            await asyncio.sleep(60)
 
     async def start_test_mode(self):
         """Process one block and then wait indefinitely."""
