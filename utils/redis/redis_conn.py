@@ -1,9 +1,17 @@
+import os
+
 import redis.exceptions
 from redis import asyncio as aioredis
 from redis.asyncio.connection import ConnectionPool
 from utils.logging import logger
 from config.loader import get_core_config
 from typing import Optional
+
+
+def _default_redis_pool_size() -> int:
+    """Pool size from REDIS_POOL_SIZE env var if set, else 10."""
+    return int(os.environ.get('REDIS_POOL_SIZE', '10'))
+
 
 class RedisPool:
     """Singleton Redis connection pool manager."""
@@ -36,9 +44,10 @@ class RedisPool:
             url += f"{redis_settings.host}:{redis_settings.port}/{redis_settings.db}"
             
             # Create connection pool with retry on ReadOnlyError
+            pool_size = _default_redis_pool_size()
             pool = ConnectionPool.from_url(
                 url=url,
-                max_connections=100,  # Reasonable default for most use cases
+                max_connections=pool_size,
                 decode_responses=False,  # Keep raw bytes for blockchain data
                 retry_on_error=[redis.exceptions.ReadOnlyError]
             )
@@ -47,7 +56,7 @@ class RedisPool:
                 connection_pool=pool,
                 ssl=redis_settings.ssl
             )
-            instance._logger.info("Redis connection pool initialized")
+            instance._logger.info(f"Redis connection pool initialized (pool_size={pool_size})")
         
         return cls._pool
 
@@ -60,14 +69,14 @@ class RedisPool:
             cls._instance._logger.info("Redis connection pool closed")
 
 # For backwards compatibility, provide the old function name
-# but use the new pool implementation internally
-async def get_aioredis_pool(pool_size: int = 100) -> aioredis.Redis:
-    """Legacy function for getting a Redis pool. Uses the new RedisPool implementation.
+# but use the new pool implementation internally (pool_size from REDIS_POOL_SIZE env)
+def get_aioredis_pool(pool_size: int = None) -> aioredis.Redis:
+    """Legacy function for getting a Redis pool. Uses RedisPool (REDIS_POOL_SIZE env).
     
     Args:
-        pool_size (int): Maximum number of connections (default: 100)
+        pool_size: Ignored; use REDIS_POOL_SIZE env var.
     
     Returns:
         aioredis.Redis: Redis client instance with connection pooling
     """
-    return await RedisPool.get_pool()
+    return RedisPool.get_pool()
