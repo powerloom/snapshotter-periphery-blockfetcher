@@ -12,7 +12,11 @@ class BlockProcessor:
         self.shutdown_event = asyncio.Event()
         self._logger = logger.bind(module='BlockProcessor')
         
-        configure_file_logging(self.settings.logs.write_to_files)
+        # LOG_TO_FILES env overrides config (avoids template/coercion issues)
+        write_to_files = self.settings.logs.write_to_files
+        if (v := os.getenv("LOG_TO_FILES")) is not None:
+            write_to_files = str(v).strip().lower() in ("true", "1", "yes")
+        configure_file_logging(write_to_files=write_to_files)
         
     async def process_blocks(self):
         """Main processing loop for blocks."""

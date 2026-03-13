@@ -36,7 +36,7 @@
   },
   "logs": {
     "debug_mode": "${LOG_DEBUG}",
-    "write_to_files": "${LOG_TO_FILES}",
+    "write_to_files": ${LOG_TO_FILES},
     "level": "${LOG_LEVEL}"
   },
   "httpx": {
